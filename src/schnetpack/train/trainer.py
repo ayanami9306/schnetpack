@@ -178,17 +178,22 @@ class Trainer:
                 #                else:
                 train_iter = self.train_loader
 
+                train_loss = 0
+                train_size = 0
                 for train_batch in train_iter:
                     self.optimizer.zero_grad()
 
                     for h in self.hooks:
                         h.on_batch_begin(self, train_batch)
+                    train_batch_size = list(train_batch.values())[0].size(0)
+                    train_size += train_batch_size
 
                     # move input to gpu, if needed
                     train_batch = {k: v.to(device) for k, v in train_batch.items()}
 
                     result = self._model(train_batch)
                     loss = self.loss_fn(train_batch, result)
+                    train_loss += float(loss.cpu().data.numpy()) * train_batch_size
                     loss.backward()
                     self.optimizer.step()
                     self.step += 1
@@ -198,6 +203,7 @@ class Trainer:
 
                     if self._stop:
                         break
+                train_loss /= train_size
 
                 if self.epoch % self.checkpoint_interval == 0:
                     self.store_checkpoint()
@@ -248,6 +254,8 @@ class Trainer:
 
                 if self._stop:
                     break
+                print('Epoch : ', self.epoch)
+                print('Train_loss : ', train_loss, 'Val_loss : ', val_loss)
             #
             # Training Ends
             #
